@@ -35,3 +35,6 @@ attendance rates, overtime costs, and performance score trends.
 2. Uncomment the first 2 lines in the create_database file and run it
 3. Open the queries file and run each section
 4. Open workforce_dashboard.xlsx to view the finished dashboard
+
+## Dashboard Preview
+![Dashboard Preview](dashboard_preview.png)
