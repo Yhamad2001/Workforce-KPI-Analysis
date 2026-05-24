@@ -1,0 +1,342 @@
+================================================================================
+WORKFORCE OPERATIONS & KPI ANALYSIS
+Project Writeup — Yousef Hamad
+Tools: SQL (MySQL) · Excel
+Timeline: January 2024 – April 2024
+================================================================================
+
+
+OVERVIEW
+--------
+For this project I wanted to build something that takes scattered data across
+departments and turns it into something leadership at a company can actually use to make
+decisions. I decided to focus on workforce operations, specifically tracking
+employee attendance, overtime, and performance reviews across a 3-month period.
+
+The end result was a normalized MySQL database with 4 relational tables and a
+6-tab Excel KPI dashboard that surfaces department-level insights with
+conditional formatting, pivot tables, and charts.
+
+The dashboard tracks 15 employees across 5 departments — Dispatch, Finance,
+HR, Logistics, and Operations — with a total estimated annual payroll of
+$789,340 and $2,874.76 in overtime costs recorded over the analysis period.
+
+
+--------------------------------------------------------------------------------
+PART 1 — DATABASE DESIGN
+--------------------------------------------------------------------------------
+
+The first thing I did was design the database schema. I knew I needed to keep
+the data normalized so nothing was duplicated and every table had a clear
+purpose. I ended up with 4 tables:
+
+  employees
+  ---------
+  This is the central table everything else joins to. I stored the core
+  employee details here — name, department, job title, hire date, hourly rate,
+  employment type (full-time or part-time), manager ID, and region. I gave each
+  employee a unique employee_id as the primary key. The dataset includes 15
+  employees — 13 full-time and 2 part-time — spread across 5 departments.
+
+  attendance
+  ----------
+  This table tracks daily clock-in and clock-out for each employee over 3
+  months (January through March 2024). Each row is one day for one employee.
+  I included a status column — Present, Absent, Late, or Half-Day — so I could
+  filter and aggregate without having to calculate status from the times every
+  time I ran a query.
+
+  performance_reviews
+  -------------------
+  Quarterly review scores for each employee on a 1–5 scale. I captured both
+  Q1 and Q2 2024 so I could compare score trends and identify who improved
+  quarter over quarter. All 14 reviewed employees showed improvement from
+  Q1 to Q2.
+
+  overtime_log
+  ------------
+  Weekly overtime hours per employee, including who approved the overtime. I
+  kept this separate from attendance because overtime is tracked by week, not
+  by day, and the aggregation logic is different. The dataset covers 6
+  employees across 3 departments who logged overtime during the period.
+
+I wrote all the table creation and data insertion in a single SQL script
+(Workforce-KPI-Analysis_create_database.sql) so anyone running the project
+can set up the full database in one step.
+
+
+--------------------------------------------------------------------------------
+PART 2 — SQL ANALYSIS
+--------------------------------------------------------------------------------
+
+Once the database was set up I wrote the analysis queries. I organized them
+into 5 sections so they matched the tabs I was planning to build in Excel:
+
+  Section 1 — Headcount & Department Summary
+  -------------------------------------------
+  I started with headcount by department broken down by employment type, then
+  calculated an estimated annual payroll for each department using a simple
+  CASE statement — full-time employees at 2,080 hours per year and part-time
+  at 1,040. The results showed Operations as the highest-cost department at
+  $199,420 annually, followed by Dispatch at $177,840 and Logistics at
+  $174,720. Finance and HR came in lower at $125,840 and $112,320 respectively.
+  I also calculated tenure for each employee using DATEDIFF so I could see
+  how long people had been with the company.
+
+  Section 2 — Attendance & Reliability KPIs
+  ------------------------------------------
+  This is where I aggregated the attendance data. I used conditional SUM to
+  count present days, absent days, and late days per employee, then calculated
+  attendance rate as a percentage. The overall average attendance rate came out
+  to 85% across the tracked employees. The pivot breakdown showed Operations
+  had the most absences (3) and late arrivals (5), while Dispatch had the
+  best record with zero absences and zero late arrivals in the period.
+
+  I also wrote a flag query that classifies employees by status — anyone
+  below 80% gets flagged as REVIEW, 80–90% as Monitor, and above 90% as Good.
+  In my dataset, Damon Price came in at 66.7% which flagged him for review,
+  while Layla Hassan sat at exactly 80% in the Monitor band. James Osei and
+  Chloe Martin both came in above 90%.
+
+  One query I was particularly happy with uses TIMESTAMPDIFF to calculate
+  average hours worked per day per employee from the raw clock-in and
+  clock-out times.
+
+  Section 3 — Overtime Analysis
+  ------------------------------
+  I calculated total overtime hours and cost per employee — overtime is paid at
+  1.5x the hourly rate, so the cost formula is: overtime_hours * hourly_rate *
+  1.5. The results showed James Osei leading in hours at 21.5 with a cost of
+  $580.50, while Priya Kapoor had the highest dollar cost at $720.00 despite
+  fewer hours — because of her higher $30/hr rate.
+
+  At the department level, Logistics carried the heaviest overtime burden at
+  37.5 hours and $1,300.50 in cost. Operations came second at 28.5 hours and
+  $930.38, and Dispatch was lowest at 18 hours and $643.88. Total overtime
+  cost across the period was $2,874.76.
+
+  The weekly trend data showed the heaviest overtime week was the first week
+  of January with 19 total hours across 4 employees, while the lightest was
+  the third week of January at just 2 hours from a single employee.
+
+  A cross-join analysis between the overtime and attendance tables helped me
+  identify employees who had both high overtime hours and absences in the same
+  period — a potential burnout indicator worth flagging for management.
+
+  Section 4 — Performance Review Analysis
+  ----------------------------------------
+  I joined the performance_reviews table to calculate average scores by
+  department per quarter. The strongest performing department in Q2 was
+  Dispatch at 4.27, followed by HR at 4.20 and Finance at 4.00. Logistics
+  and Operations came in at 3.83 and 4.07 respectively.
+
+  Every single employee improved their score from Q1 to Q2 — no declines and
+  no flat scores. Priya Kapoor showed the largest individual jump at +0.4
+  points (3.9 to 4.3). Layla Hassan, Sofia Nguyen, Chloe Martin, and Owen
+  Murphy each improved by +0.3 points. The remaining 9 employees all improved
+  by +0.2 points.
+
+  The scatter chart pairing attendance rate with average performance score
+  showed an interesting pattern — it wasn't a clean linear relationship.
+  Damon Price had the lowest attendance at 66.7% but one of the higher
+  performance scores at 4.5, while Chloe Martin had perfect 100% attendance
+  but a score of 3.75. This suggested attendance and performance aren't as
+  directly correlated in this dataset as you might assume, which is worth
+  noting honestly.
+
+  Section 5 — Executive Summary View
+  ------------------------------------
+  The final query is a single one-row-per-department rollup that combines
+  headcount, average hourly rate, attendance percentage, average performance
+  score, and total overtime hours. Operations led in both overtime hours (855)
+  and average performance score (4.18), while Logistics had the highest
+  overtime hours relative to its size with 677 hours across 4 employees.
+
+All queries are in Workforce-KPI-Analysis_queries.sql, organized by section
+with comments explaining what each query does and which Excel tab it feeds.
+
+
+--------------------------------------------------------------------------------
+PART 3 — EXCEL DASHBOARD
+--------------------------------------------------------------------------------
+
+I exported the query results as CSV files from MySQL Workbench and imported
+them into Excel using Data → From Text/CSV to keep the columns clean. I built
+the workbook with 6 tabs in this order:
+
+  Tab 1 — Raw Data
+  ----------------
+  This tab is the data store. I pasted all 4 query result sets here with
+  section labels (EMPLOYEES, ATTENDANCE, OVERTIME, PERFORMANCE) and 3 blank
+  rows between each section. I never formatted this tab — no colors, no merged
+  cells — because all the other tabs reference it as a clean data source. I
+  formatted date columns as MM/DD/YYYY, currency columns to 2 decimal places,
+  and percentage columns to 1 decimal place.
+
+  Tab 2 — Dept Summary
+  ---------------------
+  I pasted the headcount data (Query 1A) starting at A1 and the payroll data
+  (Query 1C) starting at H1. The headcount table shows all 7 rows —
+  5 departments with Operations and Logistics each split into full-time and
+  part-time rows. The payroll table shows Operations as the highest at
+  $199,420 and HR as the lowest at $112,320.
+
+  I applied a green-yellow-red color scale to the avg_hourly_rate column using
+  conditional formatting so high-paid roles stand out green and lower-paid
+  ones show in red. I then created a clustered bar chart for headcount by
+  department and a pie chart for the payroll distribution.
+
+  Tab 3 — Attendance KPIs
+  ------------------------
+  I pasted the attendance summary (Query 2A) and added a helper Status column
+  using this formula:
+
+    =IF(H2<80,"⚠ REVIEW",IF(H2<90,"Monitor","✓ Good"))
+
+  In my data, Damon Price at 66.7% flagged as REVIEW, Layla Hassan at 80.0%
+  flagged as Monitor, and James Osei at 93.3% and Chloe Martin at 100% both
+  flagged as Good. I applied matching conditional formatting — red, yellow,
+  green — to both the percentage and status columns.
+
+  I also built a line chart from the monthly trend data (Query 2B) showing
+  absences by department. The data showed Operations consistently had the most
+  absences each month, while Dispatch had zero absences in January and only
+  one per month in February and March.
+
+  The PivotTable summarizes by department: Operations had 3 absences and 5
+  late arrivals with a 73.3% average attendance, Logistics had 0 absences and
+  1 late arrival at 93.3%, and Dispatch had 0 absences and 0 late arrivals at
+  a perfect 100%.
+
+  Tab 4 — Overtime
+  ----------------
+  I pasted three query results here — per-employee overtime (Query 3A) at A1,
+  department-level overtime (Query 3B) at H1, and the weekly trend (Query 3C)
+  below 3B. I added an OT Category helper column using:
+
+    =IF(E2>15,"High OT",IF(E2>8,"Moderate","Low"))
+
+  James Osei and Priya Kapoor both classified as High OT, Layla Hassan, Damon
+  Price and Chloe Martin as Moderate, and Kevin Adler as Low.
+
+  I built a clustered bar chart from the department data showing both hours
+  and cost side by side — I added a secondary axis for the cost series because
+  the dollar values ($643–$1,300) are much larger than the hour values (18–37)
+  and would have crushed the bars without it. I also built a line chart from
+  the weekly trend data showing the overtime fluctuation across 8 weeks.
+
+  Tab 5 — Performance
+  --------------------
+  I pasted the department-by-quarter scores (Query 4A) at A1 and the
+  per-employee score changes (Query 4B) at H1. Before building the grouped bar
+  chart I reshaped the 4A data into a pivot-style table with departments as
+  rows and Q1/Q2 as separate columns — Excel needs this layout to correctly
+  group the bars side by side per department. I added a trend column to the
+  4B table using:
+
+    =IF(E2>0,"Improved",IF(E2<0,"Declined","No Change"))
+
+  Every employee showed "Improved" — no one declined or stayed flat.
+
+  I also pasted the attendance vs performance data (Query 4D) and built a
+  scatter chart with a linear trendline. Interestingly, the data doesn't show
+  a clean correlation — Damon Price had the lowest attendance (66.7%) but the
+  highest performance score (4.5), which suggests other factors beyond
+  attendance drive performance in this team.
+
+  Tab 6 — Summary Dashboard
+  --------------------------
+  This is the executive-facing tab. I hid the gridlines, set all row heights
+  to 20px, and built a dark navy title banner in row 1 using merged cells. The
+  banner includes a live date formula:
+
+    ="Last Updated: "&TEXT(TODAY(),"MM/DD/YYYY")
+
+  Below the banner I built 5 KPI cards pulling live data from the other tabs:
+
+    Total Headcount   → 15
+    Avg Attendance %  → 61.0% (average across tracked employees)
+    Avg Perf Score    → 3.95 (average across all reviews)
+    Total OT Cost     → $2,874.76
+    Depts Tracked     → 5
+
+  Below the cards I arranged 4 charts in a 2x2 grid — I copied each one from
+  its source tab using Home → Copy as Picture and pasted them onto this tab
+  as frozen images. Finally I protected the sheet using Review → Protect Sheet
+  with no password, allowing only cell selection.
+
+
+--------------------------------------------------------------------------------
+PART 4 — KEY FINDINGS
+--------------------------------------------------------------------------------
+
+After running all the queries and building the dashboard, a few things stood
+out clearly from the actual data:
+
+1. Logistics carried the highest overtime burden by both hours and cost.
+   James Osei logged 21.5 overtime hours ($580.50) and Priya Kapoor logged
+   16 hours ($720.00) — making Logistics responsible for $1,300.50 of the
+   total $2,874.76 in overtime costs, or roughly 45% of all overtime spending.
+   Operations came second at $930.38, and Dispatch was lowest at $643.88.
+
+2. Operations had the worst attendance numbers. The department averaged 73.3%
+   attendance — well below the overall average of 85% — with 3 total absences
+   and 5 late arrivals across the tracked period. Damon Price specifically came
+   in at 66.7%, the lowest of any employee in the dataset, and was flagged for
+   management review. Dispatch, by contrast, had a perfect record with zero
+   absences and zero late arrivals.
+
+3. Every single employee improved their performance score from Q1 to Q2.
+   Priya Kapoor led with the biggest jump at +0.4 points (3.9 to 4.3).
+   Layla Hassan, Sofia Nguyen, Chloe Martin, and Owen Murphy each improved by
+   +0.3 points. The remaining 9 employees improved by +0.2 points. No one
+   declined. Dispatch had the highest Q2 average at 4.27, followed by HR
+   at 4.20.
+
+4. Attendance and performance don't correlate as directly as expected in this
+   dataset. Damon Price had the lowest attendance at 66.7% but the highest
+   individual performance score at 4.5 in the scatter data, while Chloe Martin
+   had perfect 100% attendance but a score of 3.75. This is an honest finding —
+   the scatter chart shows the trendline but the individual data points tell a
+   more nuanced story about what drives performance in this team.
+
+5. The payroll estimate showed Operations as the most expensive department at
+   $199,420 annually, driven by a mix of full-time and part-time staff and
+   the highest headcount at 4 employees. HR was the lowest at $112,320 with
+   2 full-time employees. Total estimated annual payroll across all 5
+   departments came to $789,340.
+
+
+--------------------------------------------------------------------------------
+FILES IN THIS PROJECT
+--------------------------------------------------------------------------------
+
+  Workforce-KPI-Analysis_create_database.sql
+    Creates the 4-table schema and inserts all data.
+    Uncomment the first 2 lines before running.
+
+  Workforce-KPI-Analysis_queries.sql
+    All 20+ analysis queries organized into 5 sections.
+    Add USE workforce_analysis; at the top before running.
+
+  Workforce-KPI-Analysis_excel_instructions.txt
+    Step-by-step guide for building the Excel workbook.
+
+  workforce_dashboard.xlsx
+    The finished 6-tab Excel KPI dashboard.
+
+
+--------------------------------------------------------------------------------
+HOW TO REPRODUCE THIS PROJECT
+--------------------------------------------------------------------------------
+
+  1. Install MySQL and open MySQL Workbench
+  2. Open Workforce-KPI-Analysis_create_database.sql
+     Uncomment the first 2 lines and run the full file
+  3. Verify with: SELECT COUNT(*) FROM employees; — should return 15
+  4. Open Workforce-KPI-Analysis_queries.sql
+     Add USE workforce_analysis; at the top
+     Run each section and export results as CSV
+  5. Open Excel, create workforce_dashboard.xlsx with 6 tabs
+     Follow Workforce-KPI-Analysis_excel_instructions.txt tab by tab
+  6. Open workforce_dashboard.xlsx to view the finished dashboard
