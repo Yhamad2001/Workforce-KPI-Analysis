@@ -37,4 +37,4 @@ attendance rates, overtime costs, and performance score trends.
 4. Open workforce_dashboard.xlsx to view the finished dashboard
 
 ## Dashboard Preview
-![Dashboard Preview](dashboard_preview.png)
+![Dashboard Preview](Dashboard_preview.png)
