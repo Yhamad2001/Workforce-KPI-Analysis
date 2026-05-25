@@ -27,7 +27,7 @@ attendance rates, overtime costs, and performance score trends.
 |---|---|
 | Workforce-KPI-Analysis_create_database.sql | Creates and populates all 4 tables |
 | Workforce-KPI-Analysis_queries.sql | All 20+ analytical queries |
-| Workforce-KPI-Analysis_excel_instructions.txt | Step-by-step Excel dashboard guide |
+| Workforce-KPI-Analysis_Project-Writeup.txt | Step-by-step project guide |
 | workforce_dashboard.xlsx | Final 6-tab Excel KPI dashboard |
 
 ## How to Run
